@@ -1,0 +1,167 @@
+---
+title: "Milestone Report"
+author: "Justin Desrosier"
+date: "6/17/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Data Science Specialization - Milestone Report
+
+[**Project Overview**]{.ul}
+
+Around the world, people are spending an increasing amount of time on their mobile devices for email, social networking, banking and a whole range of other activities. But typing on mobile devices can be a serious pain. SwiftKey, our corporate partner in this capstone, builds a smart keyboard that makes it easier for people to type on their mobile devices. One cornerstone of their smart keyboard is predictive text models.
+
+The project for this course will start with the basics, analyzing a large corpus of text documents to discover the structure in the data and how words are put together. It will cover cleaning and analyzing text data, then building and sampling from a predictive text model. Finally, you will use the knowledge you gained in the data products course to build a predictive text product.
+
+Leading up to this Milestone Report, 4 tasks have been completed.
+
+**Task 0 -** Understanding the Problem
+
+1.  Obtaining the data - Can you download the data and load/manipulate it in R?
+
+2.  Familiarizing yourself with NLP and text mining - Learn about the basics of natural language processing and how it relates to the data science process you have learned in the Data Science Specialization.
+
+**Task 1 -** Getting and Cleaning the Data
+
+1.  Tokenization - identifying appropriate tokens such as words, punctuation, and numbers. Writing a function that takes a file as input and returns a tokenized version of it.
+
+2.  Profanity filtering - removing profanity and other words you do not want to predict.
+
+**Task 2 -** Exploratory Data Analysis
+
+1.  Exploratory analysis - perform a thorough exploratory analysis of the data, understanding the distribution of words and relationship between the words in the corpora.
+
+2.  Understand frequencies of words and word pairs - build figures and tables to understand variation in the frequencies of words and word pairs in the data.
+
+**Task 3 -** Modelling
+
+1.  Build basic n-gram model - using the exploratory analysis you performed, build a basic [n-gram model](http://en.wikipedia.org/wiki/N-gram "Link: http://en.wikipedia.org/wiki/N-gram") for predicting the next word based on the previous 1, 2, or 3 words.
+
+2.  Build a model to handle unseen n-grams - in some cases people will want to type a combination of words that does not appear in the corpora. Build a model to handle cases where a particular n-gram isn't observed.
+
+[**Milestone Report Overview**]{.ul}
+
+There are 4 motivating tasks for this MIlestone Report stemming from the 4 tasks completed so far.
+
+1.  Demonstrate that you've downloaded the data and have successfully loaded it in.
+
+2.  Create a basic report of summary statistics about the data sets.
+
+3.  Report any interesting findings that you amassed so far.
+
+4.  Get feedback on your plans for creating a prediction algorithm and Shiny app.
+
+***1 - data loaded***
+
+```{r warning=FALSE}
+blogsFileName <- 'C:/Users/desrjus/Documents/R Files/Coursera/Capstone/Data-Science-Specialization-Capstone/final/en_US/en_US.blogs.txt'
+con <- file(blogsFileName, open = "r")
+blogs <- readLines(con, encoding = "UTF-8", skipNul = TRUE)
+close(con)
+```
+
+```{r warning=FALSE}
+newsFileName <- 'C:/Users/desrjus/Documents/R Files/Coursera/Capstone/Data-Science-Specialization-Capstone/final/en_US/en_US.news.txt'
+con <- file(newsFileName, open = "r")
+news <- readLines(con, encoding = "UTF-8", skipNul = TRUE)
+close(con)
+```
+
+```{r warning=FALSE}
+twitterFileName <- 'C:/Users/desrjus/Documents/R Files/Coursera/Capstone/Data-Science-Specialization-Capstone/final/en_US/en_US.twitter.txt'
+con <- file(twitterFileName, open = "r")
+twitter <- readLines(con, encoding = "UTF-8", skipNul = TRUE)
+close(con)
+```
+
+***2 - summary stats & charts***
+
+```{r echo=F, warning=FALSE}
+library(stringi)
+library(kableExtra)
+
+# assign sample size
+sampleSize = 0.01
+
+# file size
+fileSizeMB <- round(file.info(c(blogsFileName,
+                                newsFileName,
+                                twitterFileName))$size / 1024 ^ 2)
+
+# num lines per file
+numLines <- sapply(list(blogs, news, twitter), length)
+
+# num characters per file
+numChars <- sapply(list(nchar(blogs), nchar(news), nchar(twitter)), sum)
+
+# num words per file
+numWords <- sapply(list(blogs, news, twitter), stri_stats_latex)[4,]
+
+# words per line
+wpl <- lapply(list(blogs, news, twitter), function(x) stri_count_words(x))
+
+# words per line summary
+wplSummary = sapply(list(blogs, news, twitter),
+             function(x) summary(stri_count_words(x))[c('Min.', 'Mean', 'Max.')])
+rownames(wplSummary) = c('WPL.Min', 'WPL.Mean', 'WPL.Max')
+
+summary <- data.frame(
+    File = c("en_US.blogs.txt", "en_US.news.txt", "en_US.twitter.txt"),
+    FileSize = paste(fileSizeMB, " MB"),
+    Lines = numLines,
+    Characters = numChars,
+    Words = numWords,
+    t(rbind(round(wplSummary)))
+)
+
+kable(summary,
+      row.names = FALSE,
+      align = c("l", rep("r", 7)),
+      caption = "") %>% kable_styling(position = "left")
+```
+
+> ~WPL\ =\ Words\ Per\ Line~
+
+```{r echo=F, warning=FALSE}
+{r echo=F, warning=FALSE}
+library(ggplot2)
+library(gridExtra)
+
+plot1 <- qplot(wpl[[1]],
+               geom = "histogram",
+               xlim = c(0, 250),
+               main = "US Blogs",
+               xlab = "Words per Line",
+               ylab = "Frequency",
+               binwidth = 1)
+
+plot2 <- qplot(wpl[[2]],
+               geom = "histogram",
+               xlim = c(0, 250),
+               main = "US News",
+               xlab = "Words per Line",
+               ylab = "Frequency",
+               binwidth = 1)
+
+plot3 <- qplot(wpl[[3]],
+               geom = "histogram",
+               xlim = c(0, 250),
+               main = "US Twitter",
+               xlab = "Words per Line",
+               ylab = "Frequency",
+               binwidth = 1)
+
+plotList = list(plot1, plot2, plot3)
+do.call(grid.arrange, c(plotList, list(ncol = 1)))
+
+# free up some memory
+rm(plot1, plot2, plot3)
+```
+
+***3 - findings & observations***
+
+Due to the size of the text files, being near 200MB each, to reduce processing time, a sample size of 1% will be obtained from each data set and combined into a unified data set for analyses later in this report.
